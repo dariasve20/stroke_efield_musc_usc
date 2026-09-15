@@ -1,0 +1,1115 @@
+---
+title: 'E-field USC-MUSC dataset - tDCS sim Anon'
+author: "Diego Arias"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+library(plyr)
+library(dplyr)
+library(tidyverse)
+library(easystats)
+library(ggpubr)
+library(ggthemes)
+library(Rmisc)
+library(readr)
+library(lme4)
+library(nlme)
+library(modelbased)
+library(performance)
+library(investr) 
+library(raincloudplots) # remotes::install_github('jorvlan/raincloudplots')
+library(ggstatsplot)
+library(paletteer)
+library(gtsummary)
+library(smplot2)
+library(emmeans)
+library(ggplot2)
+
+
+library(rstatix)
+library(afex)
+library(tidyverse)
+library(ggdist)
+library(ggthemes)
+library(gridExtra)
+library(report)
+
+library(minpack.lm) # nlsLM function
+library(zoo)
+
+theme_set(theme_classic())
+
+dir <- '/Users/ariasd/Library/CloudStorage/OneDrive-MedicalUniversityofSouthCarolina/Documents/GitHub/StrokeEfield_USC/data_matrices/healthy/tDCS/anon'
+dir_ex <- '/Users/ariasd/Library/CloudStorage/OneDrive-MedicalUniversityofSouthCarolina/Documents/GitHub/StrokeEfield_USC/data_matrices/excluded/adj'
+
+
+
+
+# 5- Load e-fields magnitudes for T1+T2
+
+fullpath <- file.path(dir, 'charm_T1_T2_qform_anon_adj_Emagn.csv')
+#fullpath_ex <- file.path(dir_ex, 'charm_T1_T2_csf_noneck_sform_adj_Emagn.csv')
+
+t1_t2.df <- read.csv(fullpath)
+t1_t2.df$method <- 't1_t2'
+t1_t2.df$modality <- 't1+t2'
+t1_t2.df$FS <- 'off'
+t1_t2.df$grp_age <- c('OLD','YNG','YNG','OLD','YNG',
+            'YNG','OLD','OLD','YNG','YNG',
+            'YNG','YNG','OLD','OLD','YNG',
+            'YNG','OLD','OLD','OLD','OLD',
+            'OLD','OLD','OLD','YNG','OLD',
+            'YNG','YNG','YNG','YNG','OLD',
+            'OLD')
+
+t1_t2.df$age <- c(76, 39, 27, 65, 18,
+            27, 63, 63, 22, 23,
+            26, 30, 75, 65, 32,
+            27, 63, 63, 61, 74,
+            60, 73, 60, 23, 60,
+            26, 27, 31, 22, 64,
+            66)
+
+#t1_t2.df$seq_q <- c("Good", "Good", "Good", "Good", "Good",
+#                    "Good", "Good", "Good", "Good", "Good",
+#                    "Good", "Good", "Poor", "Good", "Good",
+#                    "Poor", "Good", "Good", "Good", "Good",
+#                    "Poor", "Good", "Good")
+
+#t1_t2_ex.df <- read.csv(fullpath_ex)
+#t1_t2_ex.df$method <- 't1_t2'
+#t1_t2_ex.df$modality <- 't1+t2'
+#t1_t2_ex.df$FS <- 'off'
+#t1_t2_ex.df$LE <- 'off'
+#t1_t2_ex.df$seq_q <- c("Good", "Good", "Good", "Good")
+
+
+# 7- load e-fields magnitudes for T1+T2+Freesurfer
+
+fullpath <- file.path(dir, 'charm_T1_T2_qform_fs_anon_adj_Emagn.csv')
+#fullpath_ex <- file.path(dir_ex, 'charm_T1_T2_csf_noneck_sform_fs_adj_Emagn.csv')
+
+t1_t2_fs.df <- read.csv(fullpath)
+t1_t2_fs.df$method <- 't1_t2_fs'
+t1_t2_fs.df$modality <- 't1+t2'
+t1_t2_fs.df$FS <- 'on'
+t1_t2_fs.df$grp_age <- c('OLD','YNG','YNG','OLD','YNG',
+            'YNG','OLD','OLD','YNG','YNG',
+            'YNG','YNG','OLD','OLD','YNG',
+            'YNG','OLD','OLD','OLD','OLD',
+            'OLD','OLD','OLD','YNG','OLD',
+            'YNG','YNG','YNG','YNG','OLD',
+            'OLD')
+
+t1_t2_fs.df$age <- c(76, 39, 27, 65, 18,
+            27, 63, 63, 22, 23,
+            26, 30, 75, 65, 32,
+            27, 63, 63, 61, 74,
+            60, 73, 60, 23, 60,
+            26, 27, 31, 22, 64,
+            66)
+
+#t1_t2_fs.df$seq_q <- c("Good", "Good", "Good", "Good", "Good",
+#                       "Good", "Good", "Good", "Good", "Good",
+#                       "Good", "Good", "Good", "Good", "Good",
+#                       "Good", "Good", "Good", "Good", "Good",
+#                       "Good", "Good","Good")
+
+#t1_t2_fs_ex.df <- read.csv(fullpath_ex)
+#t1_t2_fs_ex.df$method <- 't1_t2_fs'
+#t1_t2_fs_ex.df$modality <- 't1+t2'
+#t1_t2_fs_ex.df$FS <- 'on'
+#t1_t2_fs_ex.df$LE <- 'off'
+#t1_t2_fs_ex.df$seq_q <- c("Good", "Good", "Good", "Good")
+
+# 8- load e-fields magnitudes for T1+T2+Freesurfer+le
+
+
+# #t1_t2_fs_le.df$seq_q <- c("Good", "Good", "Good", "Good", "Good",
+# #                       "Good", "Good", "Good", "Good", "Good",
+# #                       "Good", "Good", "Good", "Good", "Good",
+# #                       "Good", "Good", "Good", "Good", "Good",
+# #                       "Good", "Good","Good")
+#
+#
+# #t1_t2_fs_le_ex.df <- read.csv(fullpath_ex)
+# #t1_t2_fs_le_ex.df$method <- 't1_t2_fs_le'
+# #t1_t2_fs_le_ex.df$modality <- 't1+t2'
+# #t1_t2_fs_le_ex.df$FS <- 'on'
+# #t1_t2_fs_le_ex.df$LE <- 'on'
+# #t1_t2_fs_le_ex.df$seq_q <- c("Good", "Good", "Good", "Good")
+#
+# #data_ex.df <- bind_rows(t1_ex.df, t1_fs_ex.df, t1_le_ex.df, t1_fs_le_ex.df,
+# #                     t1_t2_ex.df, t1_t2_fs_ex.df, t1_t2_le_ex.df, t1_t2_fs_le_ex.df)
+
+
+data.df <- bind_rows(t1_t2.df, t1_t2_fs.df)
+
+#data.df <- bind_rows(t1.df, t1_fs.df, t1_le.df, t1_fs_le.df)
+
+data_all.df <- data.df
+#data.df <- bind_rows(t1.df, t1_fs.df, t1_le.df, t1_fs_le.df,  
+#                     t1_t2.df, t1_t2_fs.df, t1_t2_le.df, t1_t2_fs_le.df)
+
+#data.df <- data.df %>%
+#  mutate(avg_E_magn = as.numeric(avg_E_magn),
+#         avg_E_normal = as.numeric(avg_E_normal),
+#         avg_E_tanget = as.numeric(avg_E_tanget),
+##         n_nodes_roi = as.numeric(n_nodes_roi),
+#         n_nodes_surf = as.numeric(n_nodes_surf))
+
+#str(data.df)
+
+sub_data_excl.df <- data.df #%>%
+sub_data_all.df <- data_all.df
+  #filter(subID != '216' & subID != '195' & subID != '218' & subID != '125')  
+#filter(subID != '142' &  subID != '168' & subID != '188' & subID != '209' & subID != '213'  & subID != '222' )
+
+#sub_data_wide <- sub_data_excl.df %>%
+#   pivot_wider(
+#     names_from = method,       # Column with categories to become new columns
+#     values_from = c(avg_roi_E_magn, avg_roi_E_normal, avg_roi_E_tangent)      # Column with values to populate these columns
+     
+#   )
+
+# define factors
+
+#sub_data_excl.df$modality <-factor(sub_data_excl.df$modality)
+#sub_data_excl.df$FS <-factor(sub_data_excl.df$FS)
+#sub_data_excl.df$LE <-factor(sub_data_excl.df$LE)
+
+sub_data_all.df$modality <-factor(sub_data_all.df$modality)
+sub_data_all.df$FS <-factor(sub_data_all.df$FS)
+
+
+```
+
+# Evaluate the freesurfer effect 
+
+ T1+T2 vs T1+T2Freesurfer
+
+\*Freesurfer was generated based only the T1
+
+## E-field magnitude
+
+```{r, echo=FALSE}
+
+set.seed(123)  # reproducible jitter
+
+# 1. Determine the x-axis ordering of methods
+#ordered_methods <- sub_data.df %>%
+#  group_by(method) %>%
+#  summarize(mean_val = mean(avg_roi_E_magn, na.rm = TRUE)) %>%
+#  arrange(mean_val) %>%
+#  pull(method)
+
+# 2. Add numeric x position + deterministic jitter
+jitter_width <- 0.1
+
+data2 <- sub_data_excl.df %>%
+  mutate(method_f = factor(method, levels = c("t1_t2", "t1_t2_fs")),
+         x_base = as.numeric(method_f),
+         x_jitter = x_base + runif(n(), -jitter_width, jitter_width)) %>%
+  arrange(subID, x_base)  # ensures lines connect in order
+
+#data2$method_f <- factor(data2$method_f, levels = c("t1", "t1_le"))
+#data2$seq_q <- factor(data2$seq_q, levels = c("Good", "Poor"))
+# 3. Plot
+ggplot(data2, aes(y = avg_roi_E_magn)) +
+  
+  # boxplots at integer positions
+  geom_boxplot(aes(x = x_base, group = method_f),
+               color = "black", outlier.shape = NA, alpha = 0.5, width = 0.3) +
+  
+   # gray lines connecting jittered points per subject
+   geom_path(aes(x = x_jitter, group = subID),
+             colour = "gray70", alpha = 0.5, size = 0.5) +
+   
+#   # jittered points
+   geom_point(aes(x = x_jitter, colour = method_f, fill = method_f),
+              shape = 21, alpha = 0.6, size = 2, position = "identity") +
+   
+#group mean (at base positions, not jittered)
+   stat_summary(aes(x = x_base, group = method_f),
+                fun = mean, geom = "point",
+                shape = 20, size = 2, color = "black", fill = "black") +
+
+   # x-axis labels
+   scale_x_continuous(breaks = c(1, 2),
+                      labels = c('T1+T2', 'T1+T2+FS')) + #+
+
+   #scale_fill_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+   #scale_color_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+
+   labs(x = "", y = "E-field magnitude (V/m)",
+        caption = "black circle is the group mean") +
+   #ylim(0.02, 0.25) +
+   theme(axis.text.x = element_text(size = 11))
+
+  #Save last plot as PNG
+ ggsave("all_t1s.png", dpi = 300, width = 5.5, height = 4, units = "in")
+
+```
+
+
+
+```{r}
+ggplot(sub_data_all.df, aes(x = grp_age, y = avg_roi_E_magn, fill = FS)) +
+  geom_boxplot(
+    position = position_dodge(width = 0.7),
+    color = "black",
+    outlier.shape = NA,
+    alpha = 0.5,
+    width = 0.6
+  ) +
+  labs(
+    x = "Age Group",
+    y = "Average ROI E-field Magnitude",
+    fill = "FreeSurfer"
+  ) +
+  theme_classic()
+```
+
+
+## violin plot, e-field
+
+
+```{r}
+
+# Optional: precompute means per combination
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(avg_roi_E_magn, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_all.df,
+       aes(x = grp_age,
+           y = avg_roi_E_magn,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "t1_t2" = "FS Off",
+  "t1_t2_fs" = "FS On"
+)) +
+  
+    scale_fill_discrete(
+    name = "FS",
+    labels = c("off" = "Off", "on" = "On")
+  ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Avg. E-field magnitude (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_magn_healthy_tdcs.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+
+```
+## violing plot, peak field
+
+```{r}
+
+# Optional: precompute means per combination
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(p99_9, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_excl.df,
+       aes(x = grp_age,
+           y = p99_9,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "t1_t2" = "FS Off",
+  "t1_t2_fs" = "FS On"
+)) +
+  
+    scale_fill_discrete(
+    name = "FS",
+    labels = c("off" = "Off", "on" = "On")
+  ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Peak e-field (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_peak_mmd_tdcs_anon.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+
+```
+
+## violin plot, normal component
+
+```{r}
+
+# Optional: precompute means per combination
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(avg_roi_E_normal, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_all.df,
+       aes(x = grp_age,
+           y = avg_roi_E_normal,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "t1_t2" = "FS Off",
+  "t1_t2_fs" = "FS On"
+)) +
+  
+    scale_fill_discrete(
+    name = "FS",
+    labels = c("off" = "Off", "on" = "On")
+  ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Normal component (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_normal_healthy_tdcs.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+
+```
+
+
+## Peak e-field
+
+```{r, echo=FALSE}
+
+set.seed(123)  # reproducible jitter
+
+# 1. Determine the x-axis ordering of methods
+#ordered_methods <- sub_data.df %>%
+#  group_by(method) %>%
+#  summarize(mean_val = mean(avg_roi_E_magn, na.rm = TRUE)) %>%
+#  arrange(mean_val) %>%
+#  pull(method)
+
+# 2. Add numeric x position + deterministic jitter
+jitter_width <- 0.1
+
+data2 <- sub_data_excl.df %>%
+  mutate(method_f = factor(method, levels = c("t1_t2", "t1_t2_fs")),
+         x_base = as.numeric(method_f),
+         x_jitter = x_base + runif(n(), -jitter_width, jitter_width)) %>%
+  arrange(subID, x_base)  # ensures lines connect in order
+
+#data2$method_f <- factor(data2$method_f, levels = c("t1", "t1_le"))
+#data2$seq_q <- factor(data2$seq_q, levels = c("Good", "Poor"))
+# 3. Plot
+ggplot(data2, aes(y = p99_9)) +
+  
+  # boxplots at integer positions
+  geom_boxplot(aes(x = x_base, group = method_f),
+               color = "black", outlier.shape = NA, alpha = 0.5, width = 0.3) +
+  
+   # gray lines connecting jittered points per subject
+   geom_path(aes(x = x_jitter, group = subID),
+             colour = "gray70", alpha = 0.5, size = 0.5) +
+   
+#   # jittered points
+   geom_point(aes(x = x_jitter, colour = method_f, fill = method_f),
+              shape = 21, alpha = 0.6, size = 2, position = "identity") +
+   
+#group mean (at base positions, not jittered)
+   stat_summary(aes(x = x_base, group = method_f),
+                fun = mean, geom = "point",
+                shape = 20, size = 2, color = "black", fill = "black") +
+
+   # x-axis labels
+   scale_x_continuous(breaks = c(1, 2),
+                      labels = c('T1+T2', 'T1+T2+FS')) + #+
+
+   #scale_fill_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+   #scale_color_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+
+   labs(x = "", y = "E-field magnitude (V/m)",
+        caption = "black circle is the group mean") +
+   #ylim(0.02, 0.25) +
+   theme(axis.text.x = element_text(size = 11))
+
+  #Save last plot as PNG
+ ggsave("all_t1s.png", dpi = 300, width = 5.5, height = 4, units = "in")
+
+```
+
+##Normal component
+
+```{r, echo=FALSE}
+
+set.seed(123)  # reproducible jitter
+
+# 1. Determine the x-axis ordering of methods
+#ordered_methods <- sub_data.df %>%
+#  group_by(method) %>%
+#  summarize(mean_val = mean(avg_roi_E_magn, na.rm = TRUE)) %>%
+#  arrange(mean_val) %>%
+#  pull(method)
+
+# 2. Add numeric x position + deterministic jitter
+jitter_width <- 0.1
+
+data2 <- sub_data_excl.df %>%
+  mutate(method_f = factor(method, levels = c("t1_t2", "t1_t2_fs")),
+         x_base = as.numeric(method_f),
+         x_jitter = x_base + runif(n(), -jitter_width, jitter_width)) %>%
+  arrange(subID, x_base)  # ensures lines connect in order
+
+#data2$method_f <- factor(data2$method_f, levels = c("t1", "t1_le"))
+#data2$seq_q <- factor(data2$seq_q, levels = c("Good", "Poor"))
+# 3. Plot
+ggplot(data2, aes(y = avg_roi_E_normal)) +
+  
+  # boxplots at integer positions
+  geom_boxplot(aes(x = x_base, group = method_f),
+               color = "black", outlier.shape = NA, alpha = 0.5, width = 0.3) +
+  
+   # gray lines connecting jittered points per subject
+   geom_path(aes(x = x_jitter, group = subID),
+             colour = "gray70", alpha = 0.5, size = 0.5) +
+   
+#   # jittered points
+   geom_point(aes(x = x_jitter, colour = method_f, fill = method_f),
+              shape = 21, alpha = 0.6, size = 2, position = "identity") +
+   
+#group mean (at base positions, not jittered)
+   stat_summary(aes(x = x_base, group = method_f),
+                fun = mean, geom = "point",
+                shape = 20, size = 2, color = "black", fill = "black") +
+
+   # x-axis labels
+   scale_x_continuous(breaks = c(1, 2),
+                      labels = c('T1+T2', 'T1+T2+FS')) + #+
+
+   #scale_fill_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+   #scale_color_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+
+   labs(x = "", y = "E-field magnitude (V/m)",
+        caption = "black circle is the group mean") +
+   #ylim(0.02, 0.25) +
+   theme(axis.text.x = element_text(size = 11))
+
+  #Save last plot as PNG
+ ggsave("all_t1s.png", dpi = 300, width = 5.5, height = 4, units = "in")
+
+```
+
+
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+set.seed(123)  # reproducible jitter
+
+# 1. Determine the x-axis ordering of methods
+#ordered_methods <- sub_data.df %>%
+#  group_by(method) %>%
+#  summarize(mean_val = mean(avg_roi_E_magn, na.rm = TRUE)) %>%
+#  arrange(mean_val) %>%
+#  pull(method)
+
+# 2. Add numeric x position + deterministic jitter
+jitter_width <- 0.1
+
+data2 <- sub_data_all.df %>%
+  mutate(method_f = factor(method, levels = c("t1_t2", "t1_t2_le", "t1_t2_fs",  "t1_t2_fs_le")),
+         x_base = as.numeric(method_f),
+         x_jitter = x_base + runif(n(), -jitter_width, jitter_width)) %>%
+  arrange(subID, x_base)  # ensures lines connect in order
+
+#data2$method_f <- factor(data2$method_f, levels = c("t1", "t1_le"))
+#data2$seq_q <- factor(data2$seq_q, levels = c("Good", "Poor"))
+# 3. Plot
+ggplot(data2, aes(y = avg_roi_E_magn)) +
+  
+  # boxplots at integer positions
+  geom_boxplot(aes(x = x_base, group = method_f),
+               color = "black", outlier.shape = NA, alpha = 0.5, width = 0.3) +
+  
+   # gray lines connecting jittered points per subject
+   geom_path(aes(x = x_jitter, group = subID),
+             colour = "gray70", alpha = 0.5, size = 0.5) +
+   
+#   # jittered points
+   geom_point(aes(x = x_jitter, colour = seq_q, fill = seq_q),
+              shape = 21, alpha = 0.6, size = 2, position = "identity") +
+   
+#group mean (at base positions, not jittered)
+   stat_summary(aes(x = x_base, group = method_f),
+                fun = mean, geom = "point",
+                shape = 20, size = 2, color = "black", fill = "black") +
+
+   # x-axis labels
+   scale_x_continuous(breaks = c(1,2,3, 4),
+                      labels = c('T1+T2', 'T1+T2+Lesion','T1+T2+Fs', 'T1+T2+Fs+Lesion')) +
+
+   scale_fill_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+   scale_color_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+
+   labs(x = "", y = "E-field magnitude (V/m)",
+        caption = "black circle is the group mean") +
+   #ylim(0.02, 0.25) +
+   theme(axis.text.x = element_text(size = 11))
+
+  #Save last plot as PNG
+ ggsave("all_t1_t2s.png", dpi = 300, width = 5.5, height = 4, units = "in")
+
+```
+
+## Peak e-field
+
+```{r, echo=FALSE}
+
+set.seed(123)  # reproducible jitter
+
+# 1. Determine the x-axis ordering of methods
+#ordered_methods <- sub_data.df %>%
+#  group_by(method) %>%
+#  summarize(mean_val = mean(avg_roi_E_magn, na.rm = TRUE)) %>%
+#  arrange(mean_val) %>%
+#  pull(method)
+
+# 2. Add numeric x position + deterministic jitter
+jitter_width <- 0.1
+
+data2 <- sub_data_excl.df %>%
+  mutate(method_f = factor(method, levels = c("t1_t2", "t1_t2_le", "t1_t2_fs",  "t1_t2_fs_le")),
+         x_base = as.numeric(method_f),
+         x_jitter = x_base + runif(n(), -jitter_width, jitter_width)) %>%
+  arrange(subID, x_base)  # ensures lines connect in order
+
+#data2$method_f <- factor(data2$method_f, levels = c("t1", "t1_le"))
+#data2$seq_q <- factor(data2$seq_q, levels = c("Good", "Poor"))
+# 3. Plot
+ggplot(data2, aes(y = p99_9)) +
+  
+  # boxplots at integer positions
+  geom_boxplot(aes(x = x_base, group = method_f),
+               color = "black", outlier.shape = NA, alpha = 0.5, width = 0.3) +
+  
+   # gray lines connecting jittered points per subject
+   geom_path(aes(x = x_jitter, group = subID),
+             colour = "gray70", alpha = 0.5, size = 0.5) +
+   
+#   # jittered points
+   geom_point(aes(x = x_jitter, colour = method_f, fill = method_f),
+              shape = 21, alpha = 0.6, size = 2, position = "identity") +
+   
+#group mean (at base positions, not jittered)
+   stat_summary(aes(x = x_base, group = method_f),
+                fun = mean, geom = "point",
+                shape = 20, size = 2, color = "black", fill = "black") +
+
+   # x-axis labels
+   scale_x_continuous(breaks = c(1,2,3, 4),
+                      labels = c('T1+T2', 'T1+T2+Lesion','T1+T2+Fs', 'T1+T2+Fs+Lesion')) +
+
+   scale_fill_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+   scale_color_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+
+   labs(x = "", y = "E-field magnitude (V/m)",
+        caption = "black circle is the group mean") +
+   #ylim(0.18, 0.36) +
+   theme(axis.text.x = element_text(size = 11))
+
+  #Save last plot as PNG
+ ggsave("all_t1s.png", dpi = 300, width = 5.5, height = 4, units = "in")
+
+```
+
+## Normal component
+
+```{r, echo=FALSE}
+
+set.seed(123)  # reproducible jitter
+
+# 1. Determine the x-axis ordering of methods
+#ordered_methods <- sub_data.df %>%
+#  group_by(method) %>%
+#  summarize(mean_val = mean(avg_roi_E_magn, na.rm = TRUE)) %>%
+#  arrange(mean_val) %>%
+#  pull(method)
+
+# 2. Add numeric x position + deterministic jitter
+jitter_width <- 0.1
+
+data2 <- sub_data_excl.df %>%
+  mutate(method_f = factor(method, levels = c("t1_t2", "t1_t2_le", "t1_t2_fs",  "t1_t2_fs_le")),
+         x_base = as.numeric(method_f),
+         x_jitter = x_base + runif(n(), -jitter_width, jitter_width)) %>%
+  arrange(subID, x_base)  # ensures lines connect in order
+
+#data2$method_f <- factor(data2$method_f, levels = c("t1", "t1_le"))
+#data2$seq_q <- factor(data2$seq_q, levels = c("Good", "Poor"))
+# 3. Plot
+ggplot(data2, aes(y = avg_roi_E_normal)) +
+  
+  # boxplots at integer positions
+  geom_boxplot(aes(x = x_base, group = method_f),
+               color = "black", outlier.shape = NA, alpha = 0.5, width = 0.3) +
+  
+   # gray lines connecting jittered points per subject
+   geom_path(aes(x = x_jitter, group = subID),
+             colour = "gray70", alpha = 0.5, size = 0.5) +
+   
+#   # jittered points
+   geom_point(aes(x = x_jitter, colour = seq_q, fill = seq_q),
+              shape = 21, alpha = 0.6, size = 2, position = "identity") +
+   
+#group mean (at base positions, not jittered)
+   stat_summary(aes(x = x_base, group = method_f),
+                fun = mean, geom = "point",
+                shape = 20, size = 2, color = "black", fill = "black") +
+
+   # x-axis labels
+   scale_x_continuous(breaks = c(1,2,3, 4),
+                      labels = c('T1+T2', 'T1+T2+Lesion','T1+T2+Fs', 'T1+T2+Fs+Lesion')) +
+
+   scale_fill_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+   scale_color_manual(values = c("#6D8325FF", 'red')) + #"#E5AD4FFF")) +
+
+   labs(x = "", y = "E-field magnitude (V/m)",
+        caption = "black circle is the group mean") +
+   #ylim(0.1, 0.25) +
+   theme(axis.text.x = element_text(size = 11))
+
+  #Save last plot as PNG
+ ggsave("all_t1s.png", dpi = 300, width = 5.5, height = 4, units = "in")
+
+```
+
+# Stats analyses
+
+## 1 - Avg. E-field magnitude
+
+
+```{r}
+mod1 <- lmer(avg_roi_E_magn ~
+               #Fixed Effects
+               FS*grp_age +
+               #Random Effects
+               (1|subID),
+               #Define the data:
+               data=sub_data_all.df, REML = TRUE)
+
+summary(mod1)
+```
+
+## Stats report
+
+```{r}
+
+report(mod1)
+
+```
+
+### Violin plot
+
+
+
+```{r}
+
+# Optional: precompute means per combination
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(avg_roi_E_magn, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_all.df,
+       aes(x = grp_age,
+           y = avg_roi_E_magn,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "t1_t2" = "FS Off",
+  "t1_t2_fs" = "FS On"
+)) +
+  
+    scale_fill_discrete(
+    name = "FS",
+    labels = c("off" = "Off", "on" = "On")
+  ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Avg. E-field magnitude (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_magn_mmd_tdcs_anon.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+
+```
+
+## 2 - Avg. E-field normal
+
+```{r}
+
+mod2 <- lmer(avg_roi_E_normal ~
+               #Fixed Effects
+               FS*grp_age +
+               #Random Effects
+               (1|subID),
+               #Define the data:
+               data=sub_data_all.df, REML = TRUE)
+
+summary(mod2)
+
+```
+
+## Stats report
+
+```{r}
+
+report(mod2)
+
+```
+### violin plot
+
+```{r}
+
+# Optional: precompute means per combination
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(avg_roi_E_normal, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_all.df,
+       aes(x = grp_age,
+           y = avg_roi_E_normal,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "t1_t2" = "FS Off",
+  "t1_t2_fs" = "FS On"
+)) +
+  
+    scale_fill_discrete(
+    name = "FS",
+    labels = c("off" = "Off", "on" = "On")
+  ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Normal component (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_normal_mmd_tdcs_anon.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+
+```
+
+## 3 - Peak e-field
+
+```{r}
+
+mod3 <- lmer(p99_9 ~
+               #Fixed Effects
+               FS*grp_age +
+               #Random Effects
+               (1|subID),
+               #Define the data:
+               data=sub_data_all.df, REML = TRUE)
+
+summary(mod3)
+
+```
+
+
+```{r}
+
+report(mod3)
+
+```
+
+## violing plot, peak field
+
+```{r}
+
+# Optional: precompute means per combination
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(p99_9, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_excl.df,
+       aes(x = grp_age,
+           y = p99_9,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "t1_t2" = "FS Off",
+  "t1_t2_fs" = "FS On"
+)) +
+  
+    scale_fill_discrete(
+    name = "FS",
+    labels = c("off" = "Off", "on" = "On")
+  ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Peak e-field (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_peak_mmd_tdcs_anon.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+
+```
+
+
+
