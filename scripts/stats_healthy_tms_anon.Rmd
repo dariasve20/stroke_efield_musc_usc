@@ -1,0 +1,457 @@
+---
+title: 'E-field analysis stroke TMS'
+author: "Diego Arias, PhD"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+library(plyr)
+library(dplyr)
+library(tidyverse)
+library(easystats)
+library(ggpubr)
+library(ggthemes)
+library(Rmisc)
+library(readr)
+library(lme4)
+library(nlme)
+library(modelbased)
+library(performance)
+library(investr) 
+library(raincloudplots) # remotes::install_github('jorvlan/raincloudplots')
+library(ggstatsplot)
+library(paletteer)
+library(gtsummary)
+library(smplot2)
+library(emmeans)
+library(ggplot2)
+library(rstatix)
+library(afex)
+library(tidyverse)
+library(ggdist)
+library(ggthemes)
+library(gridExtra)
+library(report)
+library(minpack.lm) # nlsLM function
+library(zoo)
+
+theme_set(theme_classic())
+
+dir <- '/Users/ariasd/Library/CloudStorage/OneDrive-MedicalUniversityofSouthCarolina/Documents/GitHub/stroke_efield_musc_usc/data/healthy/TMS'
+
+# 5- Load e-fields magnitudes for T1+T2
+
+fullpath <- file.path(dir, 'charm_T1_T2_qform_anon_adj_Emagn.csv')
+
+t1_t2.df <- read.csv(fullpath)
+t1_t2.df$method <- 't1_t2'
+t1_t2.df$modality <- 't1+t2'
+t1_t2.df$FS <- 'off'
+t1_t2.df$grp_age <- c('OLD','YNG','YNG','OLD','YNG',
+            'YNG','OLD','OLD','YNG','YNG',
+            'YNG','YNG','OLD','OLD','YNG',
+            'YNG','OLD','OLD','OLD','OLD',
+            'OLD','OLD','OLD','YNG','OLD',
+            'YNG','YNG','YNG','YNG','OLD',
+            'OLD')
+
+t1_t2.df$age <- c(76, 39, 27, 65, 18,
+            27, 63, 63, 22, 23,
+            26, 30, 75, 65, 32,
+            27, 63, 63, 61, 74,
+            60, 73, 60, 23, 60,
+            26, 27, 31, 22, 64,
+            66)
+
+# 7- load e-fields magnitudes for T1+T2+Freesurfer
+
+fullpath <- file.path(dir, 'charm_T1_T2_qform_fs_anon_adj_Emagn.csv')
+
+t1_t2_fs.df <- read.csv(fullpath)
+t1_t2_fs.df$method <- 't1_t2_fs'
+t1_t2_fs.df$modality <- 't1+t2'
+t1_t2_fs.df$FS <- 'on'
+t1_t2_fs.df$grp_age <- c('OLD','YNG','YNG','OLD','YNG',
+            'YNG','OLD','OLD','YNG','YNG',
+            'YNG','YNG','OLD','OLD','YNG',
+            'YNG','OLD','OLD','OLD','OLD',
+            'OLD','OLD','OLD','YNG','OLD',
+            'YNG','YNG','YNG','YNG','OLD',
+            'OLD')
+
+t1_t2_fs.df$age <- c(76, 39, 27, 65, 18,
+            27, 63, 63, 22, 23,
+            26, 30, 75, 65, 32,
+            27, 63, 63, 61, 74,
+            60, 73, 60, 23, 60,
+            26, 27, 31, 22, 64,
+            66)
+
+data.df <- bind_rows(t1_t2.df, t1_t2_fs.df)
+sub_data_all.df <- data.df
+
+sub_data_all.df$modality <-factor(sub_data_all.df$modality)
+sub_data_all.df$FS <-factor(sub_data_all.df$FS)
+sub_data_all.df$grp_age <-factor(sub_data_all.df$grp_age)
+
+```
+
+Because e-field estimates are very small when using a di/dt=1 A/us, the output is scaled. TMS simulations considered the use of the cool-B65 AP coil.
+
+```{r}
+
+scale_factor = 1.2*(150/2) # di/dt at MSO for cool-B65 AP coil
+sub_data_all.df$avg_roi_E_magn_sc <- sub_data_all.df$avg_roi_E_magn*scale_factor
+sub_data_all.df$avg_roi_E_normal_sc <- sub_data_all.df$avg_roi_E_normal*scale_factor
+sub_data_all.df$p99_9_sc <- sub_data_all.df$p99_9*scale_factor
+
+sub_data_all.df$age_c <-scale(sub_data_all.df$age,
+                              center = TRUE,
+                              scale = FALSE)
+
+# also we substract the average from the age for interpretability of the model.
+
+```
+
+
+# Stats analyses
+
+## 1 - Avg. E-field magnitude
+
+### a) Linear mixed-effect model
+
+```{r}
+mod1 <- lmer(avg_roi_E_magn_sc ~
+               #Fixed Effects
+               FS*grp_age +
+               #Random Effects
+               (1|subID),
+               #Define the data:
+               data=sub_data_all.df, REML = TRUE)
+
+summary(mod1)
+
+```
+
+### b) Stats report 
+
+```{r}
+
+report(mod1)
+
+```
+
+### c) Violin plot
+
+```{r, echo=FALSE}
+
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(avg_roi_E_magn_sc, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_all.df,
+       aes(x = grp_age,
+           y = avg_roi_E_magn_sc,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "on" = "LE yes",
+  "off" = "LE no"
+)) +
+  
+   scale_fill_manual(
+    values = c("on"  = "#FF7F0E",
+               "off" = "#1F77B4"),  # orange
+    name = "FS",
+    labels = c("on" = "yes",
+               "off"  = "no")
+  ) +
+
+  scale_color_manual(
+    values = c("off" = "#1F77B4",
+               "on"  = "#FF7F0E")
+  ) +
+   # scale_fill_discrete(
+  #  name = "FS",
+ #   labels = c("off" = "Off", "on" = "On")
+ # ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Avg. E-field Magnitude (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+# Save figure
+ggsave("violin_emagn_tms_healthy_anon.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+```
+
+## 2 - Normal component
+
+### a) Linear mixed-effect model
+
+```{r}
+
+mod2 <- lmer(avg_roi_E_normal_sc ~
+               #Fixed Effects
+               FS*grp_age +
+               #Random Effects
+               (1|subID),
+               #Define the data:
+               data=sub_data_all.df, REML = TRUE)
+
+summary(mod2)
+
+
+```
+
+### b) Stats report
+
+```{r}
+
+report(mod2)
+
+```
+
+### c) Violin plot
+
+```{r, echo=FALSE}
+
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(avg_roi_E_normal_sc, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_all.df,
+       aes(x = grp_age,
+           y = avg_roi_E_normal_sc,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "on" = "LE On",
+  "off" = "LE Off"
+)) +
+     scale_fill_manual(
+    values = c("off" = "#1F77B4",   # blue
+               "on"  = "#FF7F0E"),  # orange
+    name = "FS",
+    labels = c("off" = "Off",
+               "on"  = "On")
+  ) +
+
+  scale_color_manual(
+    values = c("off" = "#1F77B4",
+               "on"  = "#FF7F0E")
+  ) +
+  #  scale_fill_discrete(
+ #   name = "FS",
+ #   labels = c("off" = "Off", "on" = "On")
+#  ) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Normal component (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_normal_tms_healthy_anon.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+```
+
+## 3 - Peak e-field
+
+### a) Linear mixed-effect model
+
+```{r}
+
+
+mod3 <- lmer(p99_9_sc ~
+               #Fixed Effects
+               FS*grp_age +
+               #Random Effects
+               (1|subID),
+               #Define the data:
+               data=sub_data_all.df, REML = TRUE)
+
+summary(mod3)
+
+
+```
+
+### b) Stats report
+
+```{r}
+
+report(mod3)
+
+```
+
+### c) Violin plot
+
+```{r, echo=FALSE}
+
+# Optional: precompute means per combination
+means_df <- sub_data_all.df %>%
+  dplyr::group_by(grp_age, FS) %>%
+  dplyr::summarise(mean_E = mean(p99_9_sc, na.rm = TRUE), .groups = "drop_last")
+
+LE_labels <- c(
+  "t1" = "T1",
+  "t1+t2" = "T1 + T2"
+)
+
+ggplot(sub_data_all.df,
+       aes(x = grp_age,
+           y = p99_9_sc,
+           fill = FS,
+           color = FS)) +
+
+  geom_violin(position = position_dodge(width = 0.7),
+              alpha = 0.2,
+              width = 0.7) +
+
+  geom_jitter(position = position_jitterdodge(jitter.width = 0.15,
+                                              dodge.width = 0.7),
+              size = 1.5,
+              alpha = 0.8) +
+
+  geom_point(data = means_df,
+             aes(x = grp_age, y = mean_E, fill = FS),
+             shape = 23,
+             size = 2.8,
+             color = "black",
+             position = position_dodge(width = 0.7)) +
+
+  facet_wrap(~ modality, labeller = labeller(modality = LE_labels)) +
+  scale_x_discrete(labels = c(
+  "on" = "LE On",
+  "off" = "LE Off"
+)) +
+     scale_fill_manual(
+    values = c("off" = "#1F77B4",   # blue
+               "on"  = "#FF7F0E"),  # orange
+    name = "FS",
+    labels = c("off" = "Off",
+               "on"  = "On")
+  ) +
+
+  scale_color_manual(
+    values = c("off" = "#1F77B4",
+               "on"  = "#FF7F0E")
+  ) +
+   # scale_fill_discrete(
+  #  name = "FS",
+  #  labels = c("off" = "Off", "on" = "On")
+  #) +
+#scale_y_continuous(limits = c(-0.05, 0.18))+
+  labs(x = "",
+       y = "Peak e-field (V/m)",
+       fill = "Freesurfer") +
+  
+  guides(color = "none") +   # remove duplicate legend
+
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 11),
+        strip.text = element_text(size = 11, face = "bold"),
+        strip.background = element_blank(),
+        #legend.position = c(0.98, 0.98),
+        legend.position = 'none',
+        legend.direction = "horizontal",
+        legend.justification = c(1, 1),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10))
+
+
+# Save figure
+ggsave("violin_peak_tms_healthy_anon.png",
+       dpi = 300,
+       width = 3.5,
+       height = 4,
+       units = "in")
+
+```
+
+
+
